@@ -7,6 +7,7 @@ from google.appengine.ext import ndb
 import datetime
 from time import *
 import foursquare
+import calendar
 DEFAULT_TR_NAME = 'def_trans'
 formatString = "%d/%m/%Y %H:%M:%S:%f"
 
@@ -72,6 +73,8 @@ class getRemainingBudget(webapp2.RequestHandler):
             budget = i.budget
             startDay = i.startDay
         
+        totalbudget = budget
+
         date = datetime.datetime.now()
         y = date.year
         m = date.month
@@ -81,13 +84,27 @@ class getRemainingBudget(webapp2.RequestHandler):
         if m < 1:
             m = m+12
             y = y-1
+
         startD = datetime.datetime(y,m,startDay,0,0,0,0)
+        totaldays = calendar.monthrange(y,m)[1]
+        days = (date-startD).days
+
         query = Trans.query(Trans.author == author, Trans.item.dateAdded >= startD)
         for i in query:
             budget = budget - i.item.price
 
+        status = "You are on budget"
+        
+        print days,totaldays,budget,totalbudget
+        if(budget*totaldays > totalbudget*days):
+            status = "You are under budget"
+        elif(budget*totaldays < totalbudget*days):
+            status = "You are over budget"
+
         md = dict()
-        md["budget"] = budget
+        md["budget"] = int(budget)
+        md["status"] = status
+        
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(md))
 
