@@ -89,7 +89,7 @@ class getRemainingBudget(webapp2.RequestHandler):
         md = dict()
         md["budget"] = budget
         self.response.headers['Content-Type'] = 'application/json'
-        self.respones.headers['access-control-allow-origin'] = '*'
+        self.response.headers['access-control-allow-origin'] = '*'
         self.response.write(json.dumps(md))
 
 class getTrans(webapp2.RequestHandler):
@@ -126,7 +126,7 @@ class getTrans(webapp2.RequestHandler):
             num = num - 1
             if(num <= 0):
                 break
-        self.respones.headers['access-control-allow-origin'] = '*'
+        self.response.headers['access-control-allow-origin'] = '*'
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(retls))
 
@@ -160,7 +160,7 @@ class delTrans(webapp2.RequestHandler):
         for i in query:
             print "WE ARE DELETING!!!"
             i.key.delete()
-        self.respones.headers['access-control-allow-origin'] = '*'
+        self.response.headers['access-control-allow-origin'] = '*'
 
 class setSettings(webapp2.RequestHandler):
     def post(self):
@@ -197,7 +197,7 @@ class setSettings(webapp2.RequestHandler):
                 startDay=startDay
             )
         settings.put()
-        self.respones.headers['access-control-allow-origin'] = '*'
+        self.response.headers['access-control-allow-origin'] = '*'
 
 class getSettings(webapp2.RequestHandler):
     def get(self):
@@ -224,14 +224,14 @@ class getSettings(webapp2.RequestHandler):
             md["foursquare"] = i.foursquare
             md["startDay"] = i.startDay
             md["email"] = author.email
-        self.respones.headers['access-control-allow-origin'] = '*'
+        self.response.headers['access-control-allow-origin'] = '*'
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(md))
 
 class MainPage(webapp2.RequestHandler):
     def get(self):
         user = users.get_current_user()
-        self.respones.headers['access-control-allow-origin'] = '*'
+        self.response.headers['access-control-allow-origin'] = '*'
         if user:
             self.response.headers['Content-Type'] = 'text/plain'
             self.response.write('Hello, ' + user.nickname())
@@ -250,7 +250,7 @@ class LocQuerry(webapp2.RequestHandler):
             md["category"] = i.getCategory()
             md["distance"] = i.getDistance()
             retls.append(md)
-        self.respones.headers['access-control-allow-origin'] = '*'
+        self.response.headers['access-control-allow-origin'] = '*'
         self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(retls))
 
@@ -292,14 +292,14 @@ class AddItem(webapp2.RequestHandler):
                 loc = loc,
                 date = date
             )
-        self.respones.headers['access-control-allow-origin'] = '*'
+        self.response.headers['access-control-allow-origin'] = '*'
         tra.put()
 
 class LoginC(webapp2.RequestHandler):
     def get(self):
 
         user = users.get_current_user()
-        self.respones.headers['access-control-allow-origin'] = '*'
+        self.response.headers['access-control-allow-origin'] = '*'
         if user:
             self.response.headers['Content-Type'] = 'text/plain'
             self.response.write('Hello, ' + user.nickname())
