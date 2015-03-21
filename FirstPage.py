@@ -50,7 +50,9 @@ def makeDicItem(trans):
 class getRemainingBudget(webapp2.RequestHandler):
     def get(self):
         author=""
+        user = ""
         if users.get_current_user():
+            user = users.get_current_user()
             author = User(
                     identity=user.user_id(),
                     email=user.email())
@@ -92,7 +94,9 @@ class getRemainingBudget(webapp2.RequestHandler):
 class getTrans(webapp2.RequestHandler):
     def get(self):
         author=""
+        user = ""
         if users.get_current_user():
+            user = users.get_current_user()
             author = User(
                     identity=user.user_id(),
                     email=user.email())
@@ -128,7 +132,9 @@ class getTrans(webapp2.RequestHandler):
 class delTrans(webapp2.RequestHandler):
     def post(self):
         author=""
+        user = ""
         if users.get_current_user():
+            user = users.get_current_user()
             author = User(
                     identity=user.user_id(),
                     email=user.email())
@@ -140,6 +146,7 @@ class delTrans(webapp2.RequestHandler):
             self.error(500)
             self.response.out.write('error in the request, no user')
             return
+
         date = datetime.datetime.now()
         x = self.request.get('date')
         if(x):
@@ -159,8 +166,11 @@ class setSettings(webapp2.RequestHandler):
         budget = float(self.request.get('budget'))
         foursquare = self.request.get('foursquare') in ["true", "True"]
         startDay = int(self.request.get('startDay'))
+        
         author=""
+        user = ""
         if users.get_current_user():
+            user = users.get_current_user()
             author = User(
                     identity=user.user_id(),
                     email=user.email())
@@ -172,6 +182,7 @@ class setSettings(webapp2.RequestHandler):
             self.error(500)
             self.response.out.write('error in the request, no user')
             return
+
         print author.identity
         print author.email
         query = Settings.query(Settings.author == author)
@@ -191,6 +202,7 @@ class setSettings(webapp2.RequestHandler):
 class getSettings(webapp2.RequestHandler):
     def get(self):
         author=""
+        user = ""
         if users.get_current_user():
             user = users.get_current_user()
             author = User(
@@ -204,6 +216,7 @@ class getSettings(webapp2.RequestHandler):
             self.error(500)
             self.response.out.write('error in the request, no user')
             return
+
         query = Settings.query(Settings.author == author)
         md = dict()
         for i in query:
@@ -226,7 +239,6 @@ class MainPage(webapp2.RequestHandler):
 
 class LocQuerry(webapp2.RequestHandler):
     def get(self):
-        pass
         lat = float(self.request.get('lat'))
         lon = float(self.request.get('lon'))
         ls = foursquare.getSuggestions(lat,lon)
@@ -285,7 +297,6 @@ class AddItem(webapp2.RequestHandler):
 
 class LoginC(webapp2.RequestHandler):
     def get(self):
-        # Checks for active Google account session
 
         user = users.get_current_user()
 
