@@ -192,6 +192,7 @@ class getSettings(webapp2.RequestHandler):
     def get(self):
         author=""
         if users.get_current_user():
+            user = users.get_current_user()
             author = User(
                     identity=user.user_id(),
                     email=user.email())
