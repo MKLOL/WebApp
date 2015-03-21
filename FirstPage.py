@@ -59,7 +59,7 @@ class getRemainingBudget(webapp2.RequestHandler):
                     identity="1",
                     email="d@d.com")
         else:
-            self.error(404)
+            self.error(500)
             self.response.out.write('error in the request, no user')
             return
         
@@ -101,7 +101,7 @@ class getTrans(webapp2.RequestHandler):
                     identity="1",
                     email="d@d.com")
         else:
-            self.error(404)
+            self.error(500)
             self.response.out.write('error in the request, no user')
             return
 
@@ -169,7 +169,7 @@ class setSettings(webapp2.RequestHandler):
                     identity="1",
                     email="d@d.com")
         else:
-            self.error(404)
+            self.error(500)
             self.response.out.write('error in the request, no user')
             return
         print author.identity
@@ -266,7 +266,7 @@ class AddItem(webapp2.RequestHandler):
                     identity="1",
                     email="d@d.com")
         else:
-            self.error(404)
+            self.error(500)
             self.response.out.write('error in the request, no user')
             return
 
@@ -283,36 +283,11 @@ class AddItem(webapp2.RequestHandler):
 
         self.response.write("success")
 
-class MainS(webapp2.RequestHandler):
-    def get(self):
-        # Checks for active Google account session
-        userId=0
-        uEmail="d@d.com"
-        if users.get_current_user():
-            userId=user.user_id()
-            uEmail=user.email()
-        elif( self.request.get('usrx') == '1'):
-            userId='1'
-        else:
-            self.error(404)
-            self.response.out.write('error in the request, no user')
-            return
-        q = Trans.query()
-        for i in q:
-            self.response.write(i.item.price)
-
 class LoginC(webapp2.RequestHandler):
     def get(self):
         # Checks for active Google account session
 
         user = users.get_current_user()
-
-        if users.get_current_user():
-            greeting.author = User(
-                    identity=user.user_id(),
-                    email=user.email())
-
-
 
         if user:
             self.response.headers['Content-Type'] = 'text/plain'
@@ -322,6 +297,6 @@ class LoginC(webapp2.RequestHandler):
 
 
 application = webapp2.WSGIApplication([
-    ('/addItem', AddItem), ('/', MainS), ('/login', LoginC), ('/ql', LocQuerry), ('/setSettings', setSettings), ('/getSettings', getSettings)
+    ('/addItem', AddItem), ('/', LoginC), ('/login', LoginC), ('/ql', LocQuerry), ('/setSettings', setSettings), ('/getSettings', getSettings)
     , ('/getTrans', getTrans), ('/delTrans', delTrans), ("/getRemainingBudget",getRemainingBudget)
 ], debug=True)
