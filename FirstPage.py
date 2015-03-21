@@ -10,12 +10,8 @@ import foursquare
 DEFAULT_TR_NAME = 'def_trans'
 formatString = "%d/%m/%Y %H:%M:%S:%f"
 
-def transaction_key(guestbook_name=DEFAULT_TR_NAME):
-    """Constructs a Datastore key for a Guestbook entity.
-
-    We use guestbook_name as the key.
-    """
-    return ndb.Key('Trans', guestbook_name)
+def transaction_key(name=DEFAULT_TR_NAME):
+    return ndb.Key('Trans', name)
 
 class User(ndb.Model):
     """Sub model for representing an author."""
@@ -39,6 +35,7 @@ class Settings(ndb.Model):
     author = ndb.StructuredProperty(User)
     budget = ndb.FloatProperty(indexed=False)
     foursquare = ndb.BooleanProperty(indexed=False)
+    startDay = ndb.IntegerProperty(indexed=False)
 
 def makeDicItem(trans):
     ret = dict()
@@ -65,14 +62,25 @@ class getRemainingBudget(webapp2.RequestHandler):
             self.error(404)
             self.response.out.write('error in the request, no user')
             return
-
-        date = datetime.datetime.now()
-        startD = datetime.datetime(date.year,date.month,1,0,0,0,0)
-        query = Trans.query(Trans.author == author, Trans.item.dateAdded >= startD)
+        
+        startDay = 1
         queryx = Settings.query(Settings.author == author)
         budget = 0.0
         for i in queryx:
             budget = i.budget
+            startDay = i.startDay
+        
+        date = datetime.datetime.now()
+        y = date.year
+        m = date.month
+        d = date.day
+        if d < startDay:
+            m = m-1
+        if m < 1:
+            m = m+12
+            y = y-1
+        startD = datetime.datetime(y,m,startDay,0,0,0,0)
+        query = Trans.query(Trans.author == author, Trans.item.dateAdded >= startD)
         for i in query:
             budget = budget - i.item.price
 
@@ -142,13 +150,13 @@ class delTrans(webapp2.RequestHandler):
         for i in query:
             print "WE ARE DELETING!!!"
             i.key.delete()
-
         
 
 class setSettings(webapp2.RequestHandler):
     def post(self):
         budget = float(self.request.get('budget'))
         foursquare = self.request.get('foursquare') in ["true", "True"]
+        startDay = int(self.request.get('startDay'))
         author=""
         if users.get_current_user():
             author = User(
@@ -171,7 +179,8 @@ class setSettings(webapp2.RequestHandler):
         settings = Settings(
                 author=author,
                 budget=budget,
-                foursquare=foursquare
+                foursquare=foursquare,
+                startDay=startDay
             )
         print foursquare
         settings.put()
@@ -197,6 +206,8 @@ class getSettings(webapp2.RequestHandler):
         for i in query:
             md["budget"] = i.budget
             md["foursquare"] = i.foursquare
+            md["startDay"] = i.startDay
+            md["email"] = author.email
 
         self.response.write(json.dumps(md))
 
