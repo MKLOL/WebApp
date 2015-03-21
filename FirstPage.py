@@ -122,7 +122,6 @@ class getTrans(webapp2.RequestHandler):
         retls = []
 
         for i in query:
-            print "\n\n!!!\n\n"
             retls.append(makeDicItem(i))
             num = num - 1
             if(num <= 0):
