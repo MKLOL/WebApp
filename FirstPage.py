@@ -86,6 +86,7 @@ class getRemainingBudget(webapp2.RequestHandler):
 
         md = dict()
         md["budget"] = budget
+        self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(md))
 
 class getTrans(webapp2.RequestHandler):
@@ -121,6 +122,7 @@ class getTrans(webapp2.RequestHandler):
             num = num - 1
             if(num <= 0):
                 break
+        self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(retls))
 
 class delTrans(webapp2.RequestHandler):
@@ -198,7 +200,7 @@ class getSettings(webapp2.RequestHandler):
                     identity="1",
                     email="d@d.com")
         else:
-            self.error(404)
+            self.error(500)
             self.response.out.write('error in the request, no user')
             return
         query = Settings.query(Settings.author == author)
@@ -208,7 +210,7 @@ class getSettings(webapp2.RequestHandler):
             md["foursquare"] = i.foursquare
             md["startDay"] = i.startDay
             md["email"] = author.email
-
+        self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(md))
 
 class MainPage(webapp2.RequestHandler):
@@ -227,7 +229,6 @@ class LocQuerry(webapp2.RequestHandler):
         lat = float(self.request.get('lat'))
         lon = float(self.request.get('lon'))
         ls = foursquare.getSuggestions(lat,lon)
-        self.response.headers['Content-Type'] = 'json/application'
         retls = []
         for i in ls:
             md = dict()
@@ -235,6 +236,7 @@ class LocQuerry(webapp2.RequestHandler):
             md["category"] = i.getCategory()
             md["distance"] = i.getDistance()
             retls.append(md)
+        self.response.headers['Content-Type'] = 'application/json'
         self.response.write(json.dumps(retls))
 
 
