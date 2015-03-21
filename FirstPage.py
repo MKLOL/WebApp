@@ -197,7 +197,6 @@ class setSettings(webapp2.RequestHandler):
             )
         print foursquare
         settings.put()
-        self.response.write("Succes")
 
 class getSettings(webapp2.RequestHandler):
     def get(self):
@@ -292,8 +291,6 @@ class AddItem(webapp2.RequestHandler):
             )
 
         tra.put()
-
-        self.response.write("success")
 
 class LoginC(webapp2.RequestHandler):
     def get(self):
