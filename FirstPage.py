@@ -88,6 +88,7 @@ class getRemainingBudget(webapp2.RequestHandler):
         startD = datetime.datetime(y,m,startDay,0,0,0,0)
         totaldays = calendar.monthrange(y,m)[1]
         days = (date-startD).days
+        days = totaldays - days
 
         query = Trans.query(Trans.author == author, Trans.item.dateAdded >= startD)
         for i in query:
@@ -95,7 +96,6 @@ class getRemainingBudget(webapp2.RequestHandler):
 
         status = "You are on budget"
         
-        print days,totaldays,budget,totalbudget
         if(budget*totaldays > totalbudget*days):
             status = "You are under budget"
         elif(budget*totaldays < totalbudget*days):
