@@ -12,6 +12,7 @@ import random
 DEFAULT_TR_NAME = 'def_trans'
 formatString = "%d/%m/%Y %H:%M:%S:%f"
 categories = ["Food","Health","Clothing","Bills","Other","Entertainment","Electronics"]
+geoo = [(51.492,-0.148),(50.903,-1.407),(52.409,-1.512),(51.526,-0.139),(53.484,-2.242),(53.407,-2.988)]
 
 def transaction_key(name=DEFAULT_TR_NAME):
     return ndb.Key('Trans', name)
@@ -355,8 +356,9 @@ class getInsights(webapp2.RequestHandler):
         startD = datetime.datetime(y,m,startDay,0,0,0,0)
         totaldays = calendar.monthrange(y,m)[1]
         days = (date-startD).days
-        
-#pie things
+        text = []
+
+#pie stuff
         pichartM = {}
         totalM = 0
         pichartT = {}
@@ -365,36 +367,34 @@ class getInsights(webapp2.RequestHandler):
         for c in categories:
             pichartM[c] = 0
             pichartT[c] = 0
-            query1 = Trans.query(Trans.author == author, Trans.item.dateAdded >= startD, Trans.item.storeCat == c)
-            for t in query1:
-                pichartM[c] = pichartM[c] + t.item.price 
-            totalM = totalM + pichartM[c]
-            query2 = Trans.query(Trans.author == author, Trans.item.storeCat == c)
-            for t in query2:
-                pichartT[c] = pichartT[c] + t.item.price
-            totalT = totalT + pichartT[c]
- 
- #normalizing
-        if totalM == 0:
-            pichartM = "none"
-        else:
-            for c in categories:
-                pichartM[c] = 1.0*pichartM[c]/totalM        
-        if totalT == 0:
-            pichartT = "none"
-        else:
-            for c in categories:
-                pichartT[c] = 1.0*pichartT[c]/totalT
+
+        query1 = Trans.query(Trans.author == author, Trans.item.date >= startD)
+        for t in query1:
+            c = t.item.storeCat
+            pichartM[c] = pichartM[c] + t.item.price 
+            totalM = totalM + t.item.price
         
-#heatmap stuff (and burndown cause why not)
-        heatmapM = {}
-        heatmapT = {}
+        query2 = Trans.query(Trans.author == author)
+        for t in query2:
+            c = t.item.storeCat
+            pichartT[c] = pichartT[c] + t.item.price
+            totalT = totalT + t.item.price
+
+
+
+#burndown stuff
         burndown = {}
-        text = {}
-        maxM = 0
-        maxT = 0
         for i in range(0,totaldays):
             burndown[i] = 0
+
+
+#heatmap stuff
+        heatmapM = {}
+        heatmapT = {}
+        maxM = 0
+        maxT = 0
+        heatM = (-1,-1)
+        heatT = (-1,-1)
 
         for i in range(0,7):
             heatmapM[i] = {}
@@ -403,40 +403,69 @@ class getInsights(webapp2.RequestHandler):
                 heatmapM[i][j] = 0
                 heatmapT[i][j] = 0
         
-        query1 = Trans.query(Trans.author == author, Trans.item.dateAdded >= startD)
+        query1 = Trans.query(Trans.author == author, Trans.item.date >= startD)
         for t in query1:
-            x = t.item.dateAdded.weekday()
-            y = t.item.dateAdded.hour / 2
-            z = (t.item.dateAdded - startD).days
+            x = t.item.date.weekday()
+            y = t.item.date.hour / 2
+            z = (t.item.date - startD).days
             burndown[z+1] = burndown[z+1] + t.item.price
             print z,burndown[z]
             heatmapM[x][y] = heatmapM[x][y] + t.item.price
             if(heatmapM[x][y] > maxM):
                 maxM = heatmapM[x][y]
+                heatM = (x,y)
 
         query2 = Trans.query(Trans.author == author)
         for t in query2:
-            x = t.item.dateAdded.weekday()
-            y = t.item.dateAdded.hour / 2
+            x = t.item.date.weekday()
+            y = t.item.date.hour / 2
             heatmapT[x][y] = heatmapT[x][y] + t.item.price
             if(heatmapT[x][y] > maxT):
                 maxT = heatmapT[x][y]
+                heatT = (x,y)
+ 
+ #normalize pie
+        maxpM = 0
+        maxpT = 0
+        catM = ""
+        catT = ""
 
-#normalizing
+        if totalM == 0:
+            pichartM = "none"
+        else:
+            for c in categories:
+                if pichartM[c] > maxpM:
+                    maxpM = pichartM[c]
+                    catM = c
+                pichartM[c] = 1.0*pichartM[c]/totalM        
+            text.append("You spent the greatest part of this month's budget in the category "+catM)
+
+        if totalT == 0:
+            pichartT = "none"
+        else:
+            for c in categories:
+                if pichartT[c] > maxpT:
+                    maxpT = pichartT[c]
+                    catT = c
+                pichartT[c] = 1.0*pichartT[c]/totalT
+            text.append("You generally spend the greatest part of your budget in the category "+catT)
+
+       
+#normalize burndown
         summ = budget
         for i in range(0,days+1):
             burndown[i] = summ
             summ = summ - burndown[i+1]
          
-        print maxM, maxT
-        print heatmapM
+#normalize heatmaps
         if maxM == 0:
             heatmapM = "none"
         else:
+
             for i in range(0,7):
                 for j in range(0,12):
                     heatmapM[i][j] = 1.0*heatmapM[i][j]/maxM
-
+            
         if maxT == 0:
             heatmapT = "none"
         else:
@@ -444,6 +473,9 @@ class getInsights(webapp2.RequestHandler):
                 for j in range(0,12):
                     heatmapT[i][j] = 1.0*heatmapT[i][j]/maxT
 
+#other text stuff
+
+#return everything
         ret = {}
         ret['PieMonth'] = pichartM
         ret['PieTotal'] = pichartT
@@ -488,15 +520,20 @@ class generateData(webapp2.RequestHandler):
         dateStart = datetime.datetime.now() - datetime.timedelta(days=365)
 
         while(dateStart < datetime.datetime.now()):
-            dateStart = dateStart + datetime.timedelta(minutes=random.randint(60,60*12))
+            dateStart = dateStart + datetime.timedelta(minutes=random.randint(60,60*24))
+            if dateStart > datetime.datetime.now():
+                break
             if(dateStart.hour <= 8):
                 dateStart = dateStart + datetime.timedelta(hours=12)
             tra = Trans(parent=transaction_key())
-            loc = ndb.GeoPt(52.0,-1.0)
+            location = random.choice(geoo)
+            loc = ndb.GeoPt(location[0],location[1])
+            ls = foursquare.getSuggestions(location[0],location[1])
+            
             tra.author = author
             tra.item = Item(
-                price = random.random()*30.0,
-                storeName = "randstore",
+                price = random.random()*25.0,
+                storeName = random.choice(ls).getName(),
                 storeCat = random.choice(categories),
                 name = random.choice(itemList),
                 loc = loc,
