@@ -10,6 +10,7 @@ import foursquare
 import calendar
 DEFAULT_TR_NAME = 'def_trans'
 formatString = "%d/%m/%Y %H:%M:%S:%f"
+categories = ["Food","Health","Clothing","Bills","Other","Entertainment","Electronics"]
 
 def transaction_key(name=DEFAULT_TR_NAME):
     return ndb.Key('Trans', name)
@@ -22,7 +23,7 @@ class User(ndb.Model):
 class Item(ndb.Model):
     price = ndb.FloatProperty(indexed=False)
     storeName = ndb.StringProperty(indexed=False)
-    storeCat = ndb.StringProperty(indexed=False)
+    storeCat = ndb.StringProperty(indexed=True)
     name = ndb.StringProperty(indexed=False)
     loc = ndb.GeoPtProperty(indexed=False)
     date = ndb.DateTimeProperty(auto_now_add=False)
@@ -312,9 +313,145 @@ class AddItem(webapp2.RequestHandler):
         self.response.headers['access-control-allow-origin'] = '*'
         tra.put()
 
+class getInsights(webapp2.RequestHandler):
+    def get(self):
+        author=""
+        user = ""
+        if users.get_current_user():
+            user = users.get_current_user()
+            author = User(
+                    identity=user.user_id(),
+                    email=user.email())
+        elif( self.request.get('usrx') == '1'):
+            author = User(
+                    identity="1",
+                    email="d@d.com")
+        else:
+            self.error(555)
+            self.response.out.write('error in the request, no user')
+            return
+
+        startDay = 1
+        queryx = Settings.query(Settings.author == author)
+        budget = 0.0
+        for i in queryx:
+            budget = i.budget
+            startDay = i.startDay
+        
+        date = datetime.datetime.now()
+        y = date.year
+        m = date.month
+        d = date.day
+        if d < startDay:
+            m = m-1
+        if m < 1:
+            m = m+12
+            y = y-1
+
+        startD = datetime.datetime(y,m,startDay,0,0,0,0)
+        totaldays = calendar.monthrange(y,m)[1]
+        days = (date-startD).days
+        days = totaldays - days
+
+#pie things
+        pichartM = {}
+        totalM = 0
+        pichartT = {}
+        totalT = 0
+        
+        for c in categories:
+            pichartM[c] = 0
+            pichartT[c] = 0
+            query1 = Trans.query(Trans.author == author, Trans.item.dateAdded >= startD, Trans.item.storeCat == c)
+            for t in query1:
+                pichartM[c] = pichartM[c] + t.item.price 
+            totalM = totalM + pichartM[c]
+            query2 = Trans.query(Trans.author == author, Trans.item.storeCat == c)
+            for t in query2:
+                pichartT[c] = pichartT[c] + t.item.price
+            totalT = totalT + pichartT[c]
+ 
+ #normalizing
+        if totalM == 0:
+            pichartM = "none"
+        else:
+            for c in categories:
+                pichartM[c] = 1.0*pichartM[c]/totalM        
+        if totalT == 0:
+            pichartT = "none"
+        else:
+            for c in categories:
+                pichartT[c] = 1.0*pichartT[c]/totalT
+        
+#heatmap stuff (and burndown cause why not)
+        heatmapM = {}
+        heatmapT = {}
+        burndown = {}
+        text = {}
+        maxM = 0
+        maxT = 0
+        for i in range(0,totaldays):
+            burndown[i] = 0
+
+        for i in range(0,7):
+            heatmapM[i] = {}
+            heatmapT[i] = {}
+            for j in range(0,12):
+                heatmapM[i][j] = 0
+                heatmapT[i][j] = 0
+        
+        query1 = Trans.query(Trans.author == author, Trans.item.dateAdded >= startD)
+        for t in query1:
+            x = t.item.dateAdded.weekday()
+            y = t.item.dateAdded.hour / 2
+            z = (t.item.dateAdded - startD).days
+            burndown[z] = burndown[z] + t.item.price
+            heatmapM[x][y] = heatmapM[x][y] + t.item.price
+            if(heatmapM[x][y] > maxM):
+                maxM = heatmapM[x][y]
+
+        query2 = Trans.query(Trans.author == author)
+        for t in query2:
+            x = t.item.dateAdded.weekday()
+            y = t.item.dateAdded.hour / 2
+            heatmapT[x][y] = heatmapT[x][y] + t.item.price
+            if(heatmapT[x][y] > maxT):
+                maxT = heatmapT[x][y]
+
+#normalizing
+        summ = budget
+        for i in range(0,totaldays):
+            summ = summ - burndown[i]
+            burndown[i] = summ 
+        print maxM, maxT
+        print heatmapM
+        if maxM == 0:
+            heatmapM = "none"
+        else:
+            for i in range(0,7):
+                for j in range(0,12):
+                    heatmapM[i][j] = 1.0*heatmapM[i][j]/maxM
+
+        if maxT == 0:
+            heatmapT = "none"
+        else:
+            for i in range(0,7):
+                for j in range(0,12):
+                    heatmapT[i][j] = 1.0*heatmapT[i][j]/maxT
+
+        ret = {}
+        ret['PieMonth'] = pichartM
+        ret['PieTotal'] = pichartT
+        ret['HeatMonth'] = heatmapM
+        ret['HeatTotal'] = heatmapT
+        ret['Burndown'] = burndown
+        ret['Text'] = text
+        self.response.headers['access-control-allow-origin'] = '*'
+        self.response.headers['Content-Type'] = 'application/json'
+        self.response.write(json.dumps(ret))
+
 class LoginC(webapp2.RequestHandler):
     def get(self):
-
         user = users.get_current_user()
         self.response.headers['access-control-allow-origin'] = '*'
         if user:
@@ -326,5 +463,5 @@ class LoginC(webapp2.RequestHandler):
 
 application = webapp2.WSGIApplication([
     ('/addItem', AddItem), ('/', LoginC), ('/login', LoginC), ('/ql', LocQuerry), ('/setSettings', setSettings), ('/getSettings', getSettings)
-    , ('/getTrans', getTrans), ('/delTrans', delTrans), ("/getRemainingBudget",getRemainingBudget)
+    , ('/getInsights', getInsights), ('/getTrans', getTrans), ('/delTrans', delTrans), ("/getRemainingBudget",getRemainingBudget)
 ], debug=True)
