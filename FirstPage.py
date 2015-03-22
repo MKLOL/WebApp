@@ -355,8 +355,7 @@ class getInsights(webapp2.RequestHandler):
         startD = datetime.datetime(y,m,startDay,0,0,0,0)
         totaldays = calendar.monthrange(y,m)[1]
         days = (date-startD).days
-        days = totaldays - days
-
+        
 #pie things
         pichartM = {}
         totalM = 0
@@ -409,7 +408,8 @@ class getInsights(webapp2.RequestHandler):
             x = t.item.dateAdded.weekday()
             y = t.item.dateAdded.hour / 2
             z = (t.item.dateAdded - startD).days
-            burndown[z] = burndown[z] + t.item.price
+            burndown[z+1] = burndown[z+1] + t.item.price
+            print z,burndown[z]
             heatmapM[x][y] = heatmapM[x][y] + t.item.price
             if(heatmapM[x][y] > maxM):
                 maxM = heatmapM[x][y]
@@ -424,9 +424,10 @@ class getInsights(webapp2.RequestHandler):
 
 #normalizing
         summ = budget
-        for i in range(0,totaldays):
-            summ = summ - burndown[i]
-            burndown[i] = summ 
+        for i in range(0,days+1):
+            burndown[i] = summ
+            summ = summ - burndown[i+1]
+         
         print maxM, maxT
         print heatmapM
         if maxM == 0:

@@ -22,3 +22,10 @@ indexes:
   - name: author.identity
   - name: item.dateAdded
     direction: desc
+
+- kind: Trans
+  properties:
+  - name: author.email
+  - name: author.identity
+  - name: item.storeCat
+  - name: item.dateAdded
