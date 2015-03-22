@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+	<head>
+
+		<script src="bower_components/webcomponentsjs/webcomponents.min.js"></script>
+		<link rel="import" href="bower_components/core-elements/core-elements.html">
+		<link rel="import" href="bower_components/core-icons/core-icons.html">
+		<link rel="import" href="bower_components/core-icons/editor-icons.html">
+		<link rel="import" href="bower_components/paper-elements/paper-elements.html">
+		<link rel="import" href="bower_components/geo-location/geo-location.html">
+		
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<link rel="stylesheet" type="text/css" href="app.css">
+	</head>
+	<body unresolved fullbleed>
+		<template is="auto-binding" id="main-view">
+			<core-scaffold id="scaffold">
+				<nav>
+					<core-toolbar><span>{{appName}}</span></core-toolbar>
+					<flatiron-director route="{{route}}" autoHash></flatiron-director>
+					<core-menu on-core-select="{{menuItemSelected}}" valueattr="hash" selected="{{route}}">
+						<template repeat="{{page in pages}}">
+							<paper-item hash="{{page.hash}}" noink>
+								<core-icon icon="{{page.icon}}"></core-icon>
+								<a href="#{{page.hash}}">{{page.name}}</a>
+							</paper-item>
+						</template>
+					</core-menu>
+				</nav>
+
+				<core-toolbar tool flex>
+					<div flex>{{pageName}}</div>
+					<core-icon-button icon="refresh" on-click="{{refreshPage}}"></core-icon-button>
+				</core-toolbar>
+
+				<div layout horizontal center-center fit>
+					<core-animated-pages valueattr="hash" selected="{{route}}" transitions="fade" >
+						<section hash="budget" layout vertical center-center>
+							<div>
+								<core-ajax id="remainingBudgetUpdater" url="/getRemainingBudget" handleAs="json" auto response="{{budgetData}}"></core-ajax>
+
+								<geo-location id="geoLocation" latitude="{{geoLat}}" longitude="{{geoLon}}" watchpos highaccuracy></geo-location>
+
+								<div id="budget-field">&pound;{{budgetData.budget}}</div>
+								<br/><br/>
+								<div layout horizontal center-center>
+									<core-label>
+										<paper-input-decorator label="0.00">
+											<input type="number" id="transValue" pattern="\d*" is="core-input" max="9999.99" min="0.01" step="0.01" size="5" preventInvalidInput="true">
+										</paper-input-decorator><paper-button raised="true" on-click="{{startAddTrans}}" id="addTransButton">Add</paper-button>
+									</core-label>
+								</div>
+
+								<paper-dialog id="transAddLocationDialog" heading="Select a location" backdrop="true" layered="true" transition="core-transition-center" autoCloseDisabled="true" on-core-overlay-close-completed="{{transTrySave}}">
+									<div layout vertical center-center>
+										<paper-spinner class="blue" active="{{transDialogSpinnerActive}}"></paper-spinner>
+										<core-ajax id="locationQuery" url="/ql" params='{"lat": {{geoLat}}, "lon": {{geoLon}}}' handleAs="json" response="{{locations}}" on-core-response="{{updateTransDialog0}}"></core-ajax>
+										<core-menu on-core-select="{{selectLocation}}">
+											<template repeat="{{location in locations}}">
+												<paper-item>
+													{{location.name}}
+												</paper-item>
+											</template>
+										</core-menu>
+
+										<paper-button raised="true" on-click="{{continueAddTrans}}">Skip</paper-button>
+									</div>
+								</paper-dialog>
+
+								<paper-dialog id="transAddCategoryDialog" heading="Select a category" autoCloseDisabled="true" backdrop="true" layered="true" on-core-overlay-close-completed="{{transTrySave}}">
+									<div layout vertical center-center>
+										<core-menu on-core-select="{{selectCategory}}">
+											<paper-item>Food</paper-item>
+											<paper-item>Health</paper-item>
+											<paper-item>Clothing</paper-item>
+											<paper-item>Bills</paper-item>
+											<paper-item>Entertainment</paper-item>
+											<paper-item>Electronics</paper-item>
+											<paper-item>Other</paper-item>
+										</core-menu>
+										<paper-button raised="true" on-click="{{transSave}}">Skip</paper-button>
+									</div>
+								</paper-dialog>
+
+								<core-ajax url="/addItem" params="{{transaction}}" method="POST" id="transactionSaver" response="{{lastTransaction}}" handleAs="json" on-core-response="{{transSaved}}"></core-ajax>
+							</div>
+
+							<paper-toast id="transToast">
+								Expense saved.
+								<paper-button>Undo <core-icon icon="undo"></core-icon></paper-button>
+							</paper-toast>
+						</section>
+
+						<section hash="transactions" layout vertical center-center>
+							Transactions
+						</section>
+
+						<section hash="insights" layout vertical center-center>
+							No insights yet :&lt;
+						</section>
+
+						<section hash="settings" layout vertical center-center>
+							<div id="settings-view">
+								<core-ajax id="settingsGetter" url="/getSettings" handleAs="json" auto response="{{settings}}"></core-ajax>
+								<core-ajax id="settingsSaver" url="/setSettings" method="POST" params="{{settings}}"></core-ajax>
+								<core-label layout center-justified>Google Account<br/><br/><core-label>{{settings.email}}</core-label></core-label>
+								<core-label>
+								<core-icon icon="radio-button"></core-icon>
+								<paper-input-decorator label="Monthly Budget" floatingLabel="true">
+											<input type="number" pattern="\d*" is="core-input" value="{{settings.budget}}" max="99999" min="0" step="1" size="5" preventInvalidInput="true">
+										</paper-input-decorator>
+								</core-label>
+								<core-label>
+								<paper-input-decorator label="Month begins on" floatingLabel="true">
+											<input type="number" pattern="\d*" value="{{settings.startDay}}" is="core-input" max="28" min="1" step="1" size="5" preventInvalidInput="true">
+										</paper-input-decorator>
+								</core-label><br/><br/>
+								<core-label>
+									Location tagging&nbsp;&nbsp;&nbsp;&nbsp;
+									<paper-toggle-button checked="{{settings.foursquare}}"></paper-toggle-button>
+								</core-label><br/><br/><br/><paper-button raised="true" on-click="{{saveSettingsClicked}}" >Save</paper-button>
+							</div>
+						</section>
+
+					</core-animated-pages>
+				</div>
+
+			</core-scaffold>
+		</template>
+
+		<script>
+			DEFAULT_ROUTE = "budget";
+
+			var template = document.querySelector('#main-view');
+			template.pages = 
+			[
+				{name: 'Budget', hash: 'budget', icon: "payment"},
+				{name: 'Transactions', hash: 'transactions', icon: "view-list"},
+				{name: 'Insights', hash: "insights", icon: "editor:insert-chart"},
+				{name: "Settings", hash: "settings", icon: "settings"}
+			];
+
+			template.transDialogSpinnerActive = true;
+			template.transDialogClosing = false;
+
+			template.daysOfMonth = [];
+			for(var i = 1; i < 31; ++i)
+			{
+				template.daysOfMonth.push(i);
+			}
+
+			template.appName = "Placeholder";
+
+			template.addEventListener('template-bound', function(e) 
+			{
+				var win_hash = window.location.hash.substr(1);
+				var in_pages = false
+				for(var k in this.pages)
+				{
+					if(win_hash == this.pages[k].hash)
+					{
+						in_pages = true;
+						break;
+					}
+				}
+
+				if(!in_pages)
+				{
+					delete win_hash
+				}
+
+				// Use URL hash for initial route. Otherwise, use the first page.
+				this.route = this.route || win_hash || DEFAULT_ROUTE;
+			});
+
+
+			template.menuItemSelected = function(e, detail, sender) 
+			{
+				if(detail.isSelected) 
+				{
+					scaffold.closeDrawer();
+					this.pageName = detail.item.children[1].textContent;
+
+					if(this.pageName == "settings")
+					{
+						settingsGetter.go();
+					}
+				}
+			};
+
+
+			template.saveSettingsClicked = function(e, detail, sender)
+			{
+				// Send the new settings
+				settingsSaver.go();
+			}
+
+			template.refreshPage = function()
+			{
+				window.location.reload();
+			}
+
+			template.startAddTrans = function()
+			{
+				if(transValue.committedValue.length < 0 || transValue.committedValue == 0)
+				{
+					// Do nothing if no trans.
+					return;
+				}
+
+				if(!this.settings)
+				{
+					// Wait for settings object
+					return;
+				}
+
+				if(!this.geoLat || !this.geoLon)
+				{
+					return;
+				}
+
+				// Init the transaction object
+				this.transaction = {};
+				this.transaction.price = transValue.committedValue;
+				this.transaction.lat = this.geoLat;
+				this.transaction.lon = this.geoLon;
+				this.transaction.storecat = "Other";
+				this.transaction.store = "";
+
+				this.transDialogClosing = false;
+
+				template.transAddLocationDialog = transAddLocationDialog;
+				template.transAddCategoryDialog = transAddCategoryDialog;
+				template.transactionSaver = transactionSaver;
+				template.remainingBudgetUpdater = remainingBudgetUpdater;
+				template.transToast = transToast;
+
+				if(this.settings.foursquare)
+				{
+					this.locations = {};
+					this.transDialogSpinnerActive = true;
+					locationQuery.go();
+					transAddLocationDialog.open();
+				}
+				else
+				{
+					continueAddTrans();
+				}
+			}
+
+			template.selectLocation = function(e, detail, sender)
+			{
+				if(detail.isSelected)
+				{
+					this.transaction.store = detail.item.innerText;
+					template.continueAddTrans();
+				}
+			}
+
+			template.selectCategory = function(e, detail, sender)
+			{
+				if(detail.isSelected)
+				{
+					this.transaction.storecat = detail.item.innerText;
+					this.transSave();
+				}
+			}
+
+			template.continueAddTrans = function(e, detail, sender)
+			{
+				// Get the two dialogs
+				this.transDialogClosing = true;
+				template.transAddLocationDialog.close();
+				template.transAddCategoryDialog.open();
+				this.transDialogClosing = false;
+			}
+
+			template.updateTransDialog0 = function(e, detail, sender)
+			{
+				//locationList = document.querySelector("#locationList");
+				this.transDialogSpinnerActive = false;
+			}
+
+			template.transSave = function()
+			{
+				template.transactionSaver.go();
+				template.transAddCategoryDialog.close();
+			}
+
+			template.transSaved = function()
+			{
+				template.transToast.show();
+				template.transaction = {};
+
+				setTimeout(function()
+				{
+					template.remainingBudgetUpdater.go();
+				}, 350);
+			}
+
+			window.scrollTo(0, 1); 
+
+		</script>
+	</body>
+</html>
