@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 	<head>
+		<meta charset="utf-8"> 
 
 		<script src="bower_components/webcomponentsjs/webcomponents.min.js"></script>
 		<link rel="import" href="bower_components/core-elements/core-elements.html">
@@ -8,7 +9,13 @@
 		<link rel="import" href="bower_components/core-icons/editor-icons.html">
 		<link rel="import" href="bower_components/paper-elements/paper-elements.html">
 		<link rel="import" href="bower_components/geo-location/geo-location.html">
-		
+		<link rel="import" href="bower_components/polymer-expressions/polymer-expressions.html">
+		<link rel="import" href="bower_components/polymer-filters/polymer-filters.html">
+
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/nvd3/1.7.0/nv.d3.min.js"></script>
+		<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/nvd3/1.7.0/nv.d3.min.css">
+
 		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<link rel="stylesheet" type="text/css" href="app.css">
@@ -34,16 +41,16 @@
 					<core-icon-button icon="refresh" on-click="{{refreshPage}}"></core-icon-button>
 				</core-toolbar>
 
-				<div layout horizontal center-center fit>
+				<div layout horizontal center-center block fit>
 					<core-animated-pages valueattr="hash" selected="{{route}}" transitions="fade" >
 						<section hash="budget" layout vertical center-center>
-							<div>
+							<div id="budget-view">
 								<core-ajax id="remainingBudgetUpdater" url="/getRemainingBudget" handleAs="json" auto response="{{budgetData}}"></core-ajax>
 
 								<geo-location id="geoLocation" latitude="{{geoLat}}" longitude="{{geoLon}}" watchpos highaccuracy></geo-location>
 
 								<div id="budget-field">&pound;{{budgetData.budget}}</div>
-								<br/><br/>
+								<span style="font-size: 18px">({{budgetData.status}})</span>
 								<div layout horizontal center-center>
 									<core-label>
 										<paper-input-decorator label="0.00">
@@ -52,25 +59,24 @@
 									</core-label>
 								</div>
 
-								<paper-dialog id="transAddLocationDialog" heading="Select a location" backdrop="true" layered="true" transition="core-transition-center" autoCloseDisabled="true" on-core-overlay-close-completed="{{transTrySave}}">
+								<paper-dialog id="transAddLocationDialog" heading="Select a location" backdrop="true" layered="true" transition="core-transition-center" autoCloseDisabled="true">
 									<div layout vertical center-center>
 										<paper-spinner class="blue" active="{{transDialogSpinnerActive}}"></paper-spinner>
 										<core-ajax id="locationQuery" url="/ql" params='{"lat": {{geoLat}}, "lon": {{geoLon}}}' handleAs="json" response="{{locations}}" on-core-response="{{updateTransDialog0}}"></core-ajax>
-										<core-menu on-core-select="{{selectLocation}}">
+										<core-menu id="locationSelector" on-core-select="{{selectLocation}}">
 											<template repeat="{{location in locations}}">
 												<paper-item>
 													{{location.name}}
 												</paper-item>
 											</template>
 										</core-menu>
-
 										<paper-button raised="true" on-click="{{continueAddTrans}}">Skip</paper-button>
 									</div>
 								</paper-dialog>
 
-								<paper-dialog id="transAddCategoryDialog" heading="Select a category" autoCloseDisabled="true" backdrop="true" layered="true" on-core-overlay-close-completed="{{transTrySave}}">
+								<paper-dialog id="transAddCategoryDialog" heading="Select a category" autoCloseDisabled="true" backdrop="true" layered="true">
 									<div layout vertical center-center>
-										<core-menu on-core-select="{{selectCategory}}">
+										<core-menu id="categorySelector" on-core-select="{{selectCategory}}">
 											<paper-item>Food</paper-item>
 											<paper-item>Health</paper-item>
 											<paper-item>Clothing</paper-item>
@@ -88,16 +94,58 @@
 
 							<paper-toast id="transToast">
 								Expense saved.
-								<paper-button>Undo <core-icon icon="undo"></core-icon></paper-button>
+								<paper-button on-click="{{undoLastTransaction}}">Undo</paper-button>
 							</paper-toast>
+							<core-ajax url="/delTrans" params='{"date": "{{lastTransaction.key}}"}' method="POST" id="transactionUndoer"></core-ajax>
 						</section>
 
-						<section hash="transactions" layout vertical center-center>
-							Transactions
+						<section hash="transactions" layout vertical>
+							<core-ajax id="transactionListUpdater" url="/getTrans" auto handleAs="json" response="{{trans_history}}"></core-ajax>
+							<div style="overflow-x: hidden; overflow-y: scroll">
+								<template repeat="{{trans in trans_history}}">
+										<paper-item noink>
+											<paper-icon-button icon="delete" id="{{trans.key}}" on-click="{{deleteTrans}}"></paper-icon-button>
+											<core-icon icon="item"></core-icon>{{trans.price | currency('&pound;', 2)}} on {{trans.date | truncate(16, true, "")}} at {{trans.storename}} ({{trans.storecat}})<br/>
+										</paper-item>
+								</template>
+							</div>
 						</section>
 
-						<section hash="insights" layout vertical center-center>
-							No insights yet :&lt;
+						<section hash="insights" layout vertical>
+							<div layout vertical center-center fit style="overflow-y: scroll; overflow-x: hidden; padding: 40px 10px 40px 10px">
+								<core-ajax id="insightsUpdater" url="/getInsights" auto response="{{insights}}" handleAs="json" on-core-response="{{updateInsights}}"></core-ajax>
+								<div>
+									<div>
+									<template repeat="{{text in insights.Text}}">
+										<span>{{text}}</span><br/><br/>
+									</template>
+									</div>
+									<h3>Spend Breakdown (this month)</h3>
+									<div id="month-pie-chart" style="width: 100%; height: 100%" block>
+										<svg style="width: 100%; min-height: 350px;">
+										</svg>
+									</div>
+									<h3>Spend Breakdown (all year)</h3>
+									<div id="year-pie-chart" style="width: 100%; height: 100%" block>
+										<svg style="width: 100%; min-height:350px;">
+										</svg>
+									</div>
+
+									<h3>Spend by day (this month)</h3>
+									<div id="month-heatmap" style="width: 350px; height: 280px">
+									</div>
+
+									<h3>Spend by day (all year)</h3>
+									<div id="year-heatmap">
+									</div>
+
+									<h3>Budget forecast (this momnth)</h3>
+									<div id="burndown-chart" style="width: 100%; height: 100%" block>
+										<svg style="width: 100%; min-height:350px;">
+										</svg>
+									</div>
+								</div>
+							</div>
 						</section>
 
 						<section hash="settings" layout vertical center-center>
@@ -150,7 +198,7 @@
 				template.daysOfMonth.push(i);
 			}
 
-			template.appName = "Placeholder";
+			template.appName = "Oesa";
 
 			template.addEventListener('template-bound', function(e) 
 			{
@@ -228,13 +276,16 @@
 				this.transaction.storecat = "Other";
 				this.transaction.store = "";
 
-				this.transDialogClosing = false;
-
+				
 				template.transAddLocationDialog = transAddLocationDialog;
 				template.transAddCategoryDialog = transAddCategoryDialog;
 				template.transactionSaver = transactionSaver;
 				template.remainingBudgetUpdater = remainingBudgetUpdater;
 				template.transToast = transToast;
+				template.locationSelector = locationSelector;
+				template.categorySelector = categorySelector;
+				template.transactionListUpdater = transactionListUpdater;
+				
 
 				if(this.settings.foursquare)
 				{
@@ -245,7 +296,7 @@
 				}
 				else
 				{
-					continueAddTrans();
+					this.continueAddTrans();
 				}
 			}
 
@@ -254,6 +305,7 @@
 				if(detail.isSelected)
 				{
 					this.transaction.store = detail.item.innerText;
+					template.locationSelector.selected = null;
 					template.continueAddTrans();
 				}
 			}
@@ -263,6 +315,7 @@
 				if(detail.isSelected)
 				{
 					this.transaction.storecat = detail.item.innerText;
+					template.categorySelector.selected = null;
 					this.transSave();
 				}
 			}
@@ -296,11 +349,236 @@
 				setTimeout(function()
 				{
 					template.remainingBudgetUpdater.go();
+					template.transactionListUpdater.go();
 				}, 350);
 			}
 
-			window.scrollTo(0, 1); 
+			template.undoLastTransaction = function()
+			{
+				/* Grab the trans ID */
+				transactionUndoer.go()
 
+
+				setTimeout(function()
+				{
+					template.remainingBudgetUpdater.go();
+					template.transactionListUpdater.go();
+				}, 350);
+			}
+
+			template.deleteTrans = function(e, detail, sender)
+			{
+				template.lastTransaction = {};
+				template.lastTransaction.key = sender.id;
+
+				var item = sender.parentNode;
+				item.parentNode.removeChild(item);
+
+				transactionUndoer.go();
+
+				// var i = template;
+
+
+				// setTimeout(function() {
+				// 	i.remainingBudgetUpdater.go();
+				// 	i.transactionListUpdater.go();
+				// })
+			}
+
+
+			function setupHeatMap(element, data)
+			{
+				var margin = { top: 30, right: 0, bottom: 0, left: 35 };
+				var width = 350 - margin.left - margin.right;
+				var height = 262 - margin.top - margin.bottom;
+
+				var gridSize = Math.floor(width / 12);
+				var legendElementWidth = gridSize;
+				
+				var colors = ["#99CCFF", "#9EC2F2", "#A3B8E6", "#A8ADD9", "#ADA3CC", "#B299BF", "#B88FB2", "#BD85A6", "#C27A99", "#C7708C", "#CC6680", "#D15C73", "#D65266", "#DB4759", "#E03D4D", "#E63340", "#EB2933", "#F01F26", "#F51419", "#FA0A0D", "#FF0000"]
+				var buckets = colors.length;
+
+				var days = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+				var times = ["0a", "2a", "4a", "6a", "8a", "10a", "12a", "2p", "4p", "6p", "8p", "10p", "12p"];
+
+				var colorScale = d3.scale.quantize()
+						.domain([0, buckets - 1, d3.max(data, function (d) { return d.value; })])
+						.range(colors);
+
+				var svg = d3.select(element).append("svg")
+						.attr("width", width + margin.left + margin.right)
+						.attr("height", height + margin.top + margin.bottom)
+						.append("g")
+						.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+				var dayLabels = svg.selectAll(".dayLabel")
+						.data(days)
+						.enter().append("text")
+							.text(function (d) { return d; })
+							.attr("x", 0)
+							.attr("y", function (d, i) { return i * gridSize; })
+							.style("text-anchor", "end")
+							.attr("transform", "translate(-10," + gridSize / 1.5 + ")")
+							.attr("class", function (d, i) { return ((i >= 0 && i <= 4) ? "dayLabel mono axis axis-workweek" : "dayLabel mono axis"); });
+
+				var timeLabels = svg.selectAll(".timeLabel")
+						.data(times)
+						.enter().append("text")
+							.text(function(d) { return d; })
+							.attr("x", function(d, i) { return i * gridSize; })
+							.attr("y", 0)
+							.style("text-anchor", "middle")
+							.attr("transform", "translate(" + gridSize / 2 + ", -10)")
+							.attr("class", function(d, i) { return ((i >= 4 && i <= 9) ? "timeLabel mono axis axis-worktime" : "timeLabel mono axis"); });
+
+				var heatMap = svg.selectAll(".hour")
+						.data(data)
+						.enter().append("rect")
+						.attr("x", function(d) { return (d.hour - 1) * gridSize; })
+						.attr("y", function(d) { return (d.day - 1) * gridSize; })
+						.attr("transform", "translate(26,26)")
+						.attr("rx", 4)
+						.attr("ry", 4)
+						.attr("class", "hour bordered")
+						.attr("width", gridSize)
+						.attr("height", gridSize)
+						.style("fill", colors[0]);
+
+				heatMap.transition().duration(1000)
+						.style("fill", function(d) { return colorScale(d.value); });
+
+				heatMap.append("title").text(function(d) { return d.value; });
+						
+				var legend = svg.selectAll(".legend").append("g")
+						.attr("class", "legend");
+
+				legend.append("rect")
+					.attr("x", function(d, i) { return legendElementWidth * i; })
+					.attr("y", height)
+					.attr("width", legendElementWidth)
+					.attr("height", gridSize / 2)
+					.style("fill", function(d, i) { return colors[i]; });
+
+				legend.append("text")
+					.attr("class", "mono")
+					.text(function(d) { return "≥ " + Math.round(d); })
+					.attr("x", function(d, i) { return legendElementWidth * i; })
+					.attr("y", height + gridSize);
+			}
+
+			template.updateInsights = function()
+			{
+				// this.insights
+				var MonthPie = Array();
+				for(var k in template.insights.PieMonth)
+				{
+					MonthPie.push({label: k, value: template.insights.PieMonth[k]});
+				}
+
+				var YearPie = Array();
+				for(var k in template.insights.PieTotal)
+				{
+					YearPie.push({label: k, value: template.insights.PieTotal[k]});
+				}
+
+				nv.addGraph(function() {
+					var chart = nv.models.pieChart()
+						.x(function(d) { return d.label })
+						.y(function(d) { return d.value })
+						.showLabels(true);
+
+					d3.select("#month-pie-chart svg")
+						.datum(MonthPie)
+						.transition().duration(350)
+						.call(chart);
+
+					return chart;
+				});
+
+				nv.addGraph(function() {
+					var chart = nv.models.pieChart()
+						.x(function(d) { return d.label })
+						.y(function(d) { return d.value })
+						.showLabels(true);
+
+					d3.select("#year-pie-chart svg")
+						.datum(YearPie)
+						.transition().duration(350)
+						.call(chart);
+
+					return chart;
+				});
+
+				/* Generate me the Day/Hour/Value list of data */
+				var hmd_month = Array();
+
+				for(var day in template.insights.HeatMonth)
+				{
+					for(var hr in template.insights.HeatMonth[day])
+					{
+						hmd_month.push({day: parseInt(day), hour: parseInt(hr), value: parseFloat(template.insights.HeatMonth[day][hr]) * 100.0});
+					}
+				}
+
+				var hmd_year = Array();
+
+				for(var day in template.insights.HeatTotal)
+				{
+					for(var hr in template.insights.HeatTotal[day])
+					{
+						hmd_year.push({day: parseInt(day), hour: parseInt(hr), value: parseFloat(template.insights.HeatTotal[day][hr]) * 100.0});
+					}
+				}
+
+				setupHeatMap("#month-heatmap", hmd_month);
+				setupHeatMap("#year-heatmap", hmd_year);
+
+				/* Burndown chart */
+				var burn_data = [
+					{key: "Actual", bar: true, color: "#99CCFF", values: []}, 
+					{key: "Ideal", color: "#333", values: []}];
+
+				var dec = template.insights.Burndown[0] / template.insights.Burndown.length;
+
+				for(var i = 0; i < template.insights.Burndown.length; ++i)
+				{
+					// d[0] is bars
+					// d[1] is line
+					burn_data[0].values.push([i, template.insights.Burndown[i]]);
+					burn_data[1].values.push([i, template.insights.Burndown[0] - (i * dec)]);
+				}
+
+
+				nv.addGraph(function() 
+				{
+					var bch = nv.models.linePlusBarChart()
+						.margin({top: 30, right: 45, bottom: 25, left: 45})
+						//We can set x data accessor to use index. Reason? So the bars all appear evenly spaced.
+						.x(function(d,i) { return i })
+						.y(function(d,i) { return d[1] });
+
+						bch.xAxis.tickFormat(function(d) {
+							var dx = burn_data[0].values[d] && burn_data[0].values[d][0] || 0;
+							return dx;
+						});
+
+						bch.y1Axis
+							.tickFormat(function(d) { return '£ ' + d3.format(',f')(d) });
+
+						bch.y2Axis
+							.tickFormat(function(d) { return '£ ' + d3.format(',f')(d) });
+
+						bch.bars.forceY([0]);
+
+						d3.select('#burndown-chart svg')
+							.datum(burn_data)
+							.transition()
+							.duration(0)
+							.call(bch);
+
+						nv.utils.windowResize(bch.update);
+				});
+			}
 		</script>
 	</body>
 </html>

@@ -20,9 +20,14 @@ core-animated-pages > *
 
 #budget-field
 {
-  font-size: 32px;
+  font-size: 48px;
   font-weight: 500;
   text-align: center;
+}
+
+#budget-view
+{
+  font-size: 24px;
 }
 
 body /deep/ core-toolbar 
@@ -57,6 +62,14 @@ paper-input-decorator.invalid /deep/ .focused-underline {
     /* line and color when the input is invalid and focused */
     background-color: salmon;
 }
+
+paper-toggle-button::shadow [checked] .toggle {
+      background-color: #ffca14;
+    }
+
+paper-toggle-button::shadow [checked] .toggle-ink {
+    color: #ffca14;
+  }
 
 core-menu 
 {
@@ -99,3 +112,24 @@ input[type='number']::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
+
+
+rect.bordered {
+  stroke: #E6E6E6;
+  stroke-width:2px;   
+}
+
+text.mono {
+  font-size: 9pt;
+  font-family: Consolas, courier;
+  fill: #aaa;
+}
+
+text.axis-workweek {
+  fill: #000;
+}
+
+text.axis-worktime {
+  fill: #000;
+}
+
