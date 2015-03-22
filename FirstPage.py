@@ -501,7 +501,6 @@ class LoginC(webapp2.RequestHandler):
         if user:
             self.response.headers['Content-Type'] = 'text/plain'
             self.response.write('Hello, ' + user.nickname())
-            self.redirect('/static/app.html')
         else:
             self.redirect(users.create_login_url(self.request.uri))
 
@@ -538,7 +537,7 @@ class generateData(webapp2.RequestHandler):
                 ls.append("location unknown")
             places.append(ls)
 
-        dateStart = datetime.datetime.now() - datetime.timedelta(days=30)
+        dateStart = datetime.datetime.now() - datetime.timedelta(days=365)
         categ = ["Bills","Bills","Food","Food","Health","Clothing","Other","Entertainment","Entertainment","Electronics"]
 
         while(dateStart < datetime.datetime.now()):
