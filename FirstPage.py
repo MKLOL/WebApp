@@ -76,7 +76,7 @@ class getRemainingBudget(webapp2.RequestHandler):
             startDay = i.startDay
         
         totalbudget = budget
-
+        
         date = datetime.datetime.now()
         y = date.year
         m = date.month
@@ -90,17 +90,17 @@ class getRemainingBudget(webapp2.RequestHandler):
         startD = datetime.datetime(y,m,startDay,0,0,0,0)
         totaldays = calendar.monthrange(y,m)[1]
         days = (date-startD).days
-        days = totaldays - days
+        days = totaldays - days 
 
-        query = Trans.query(Trans.author == author, Trans.item.dateAdded >= startD)
+        query = Trans.query(Trans.author == author, Trans.item.date >= startD)
         for i in query:
             budget = budget - i.item.price
 
         status = "You are on budget"
         
-        if(budget*totaldays > totalbudget*days):
+        if(budget*totaldays - totalbudget*days > totalbudget):
             status = "You are under budget"
-        elif(budget*totaldays < totalbudget*days):
+        elif(budget*totaldays - totalbudget*days < -totalbudget):
             status = "You are over budget"
 
         md = dict()
@@ -383,7 +383,7 @@ class getInsights(webapp2.RequestHandler):
 
 #burndown stuff
         burndown = []
-        for i in range(0,totaldays):
+        for i in range(0,totaldays+1):
             burndown.append(0)
 
 #heatmap stuff
@@ -406,10 +406,10 @@ class getInsights(webapp2.RequestHandler):
             x = t.item.date.weekday()
             y = t.item.date.hour / 2
             z = (t.item.date - startD).days
-            burndown[z+1] = burndown[z+1] + t.item.price
+            burndown[z] = burndown[z] + t.item.price
             print z,burndown[z]
             heatmapM[x][y] = heatmapM[x][y] + t.item.price
-            if(heatmapM[x][y] > maxM):
+            if(heatmapM[x][y] > maxM and t.item.storeCat != "Bills"):
                 maxM = heatmapM[x][y]
                 heatM = (x,y)
 
@@ -418,7 +418,7 @@ class getInsights(webapp2.RequestHandler):
             x = t.item.date.weekday()
             y = t.item.date.hour / 2
             heatmapT[x][y] = heatmapT[x][y] + t.item.price
-            if(heatmapT[x][y] > maxT):
+            if(heatmapT[x][y] > maxT and t.item.storeCat != "Bills"):
                 maxT = heatmapT[x][y]
                 heatT = (x,y)
  
@@ -436,7 +436,10 @@ class getInsights(webapp2.RequestHandler):
                     maxpM = pichartM[c]
                     catM = c
                 pichartM[c] = 1.0*pichartM[c]/totalM        
-            text.append("You spent the greatest part of this month's budget in the category "+catM)
+            if(catM == "Other"):
+                catM = "others"
+
+            text.append("You spent the greatest part of this month's budget on "+catM.lower())
 
         if totalT == 0:
             pichartT = "none"
@@ -446,7 +449,9 @@ class getInsights(webapp2.RequestHandler):
                     maxpT = pichartT[c]
                     catT = c
                 pichartT[c] = 1.0*pichartT[c]/totalT
-            text.append("You generally spend the greatest part of your budget in the category "+catT)
+            if(catT == "Other"):
+                catT = "others"
+            text.append("You generally spend the greatest part of your budget on "+catT.lower())
 
        
 #normalize burndown
@@ -524,22 +529,24 @@ class generateData(webapp2.RequestHandler):
         locations = []
         for i in geoo:
             locations.append(ndb.GeoPt(i[0],i[1]))
-        places = []
-        
-        bills = 0
+        places = [] 
         
         for i in range(0,6):
             #ls = foursquare.getSuggestions(geoo[i][0],geoo[i][1])
             ls = ["loc1","loc2","loc3"] 
             places.append(ls)
 
-        dateStart = datetime.datetime.now() - datetime.timedelta(days=365)
-        categ = ["Food","Health","Clothing","Other","Entertainment","Electronics"]
+        dateStart = datetime.datetime.now() - datetime.timedelta(days=30)
+        categ = ["Bills","Bills","Food","Food","Health","Clothing","Other","Entertainment","Entertainment","Electronics"]
 
         while(dateStart < datetime.datetime.now()):
             dateStart = dateStart + datetime.timedelta(minutes=random.randint(60,60*47))
             if dateStart > datetime.datetime.now():
                 break
+            if dateStart.hour <= 8:
+                x = random.randint(0,1)
+                if x==0:
+                    dateStart = dateStart + datetime.timedelta(hours=12)
 
             tra = Trans(parent=transaction_key()) 
             tra.author = author           
@@ -548,18 +555,10 @@ class generateData(webapp2.RequestHandler):
             loc = locations[locInd]
             ls = places[locInd]
             
-            if bills == 0:
-                b = random.randint(1,10)
-                if b==1:
-                    bills = 1
-                    tra.item = Item(price = 400, storeName = "home", storeCat = "Bills", name = "rent", loc = loc, date = dateStart)
-                    tra.put()
-                    continue
-
             tra.item = Item(
-                price = random.random()*25.0,
+                price = random.random()*70.0,
                 storeName = random.choice(ls), #.getName(),
-                storeCat = random.choice(categories),
+                storeCat = categ[random.randint(0,9)],
                 name = random.choice(itemList),
                 loc = loc,
                 date = dateStart
