@@ -12,7 +12,6 @@ import random
 DEFAULT_TR_NAME = 'def_trans'
 formatString = "%d/%m/%Y %H:%M:%S:%f"
 categories = ["Food","Health","Clothing","Bills","Other","Entertainment","Electronics"]
-geoo = [(51.492,-0.148),(50.903,-1.407),(52.409,-1.512),(51.526,-0.139),(53.484,-2.242),(53.407,-2.988)]
 
 def transaction_key(name=DEFAULT_TR_NAME):
     return ndb.Key('Trans', name)
@@ -383,10 +382,9 @@ class getInsights(webapp2.RequestHandler):
 
 
 #burndown stuff
-        burndown = {}
+        burndown = []
         for i in range(0,totaldays):
-            burndown[i] = 0
-
+            burndown.append(0)
 
 #heatmap stuff
         heatmapM = {}
@@ -458,17 +456,21 @@ class getInsights(webapp2.RequestHandler):
             summ = summ - burndown[i+1]
          
 #normalize heatmaps
+        wd = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+        tod = [" nights."," nights."," nights."," mornings"," mornings"," mornings"," afternoons."," afternoons."," afternoons."," evenings.", " evenings."," evenings."]
+        
         if maxM == 0:
             heatmapM = "none"
         else:
-
+            text.append("The greatest part of your spendings this month are on "+wd[heatM[0]]+tod[heatM[1]])
             for i in range(0,7):
                 for j in range(0,12):
                     heatmapM[i][j] = 1.0*heatmapM[i][j]/maxM
             
         if maxT == 0:
             heatmapT = "none"
-        else:
+        else: 
+            text.append("The greatest part of your overall spendings are on "+wd[heatT[0]]+tod[heatT[1]])
             for i in range(0,7):
                 for j in range(0,12):
                     heatmapT[i][j] = 1.0*heatmapT[i][j]/maxT
@@ -517,23 +519,46 @@ class generateData(webapp2.RequestHandler):
             self.response.out.write('error in the request, no user')
             return
         self.response.headers['access-control-allow-origin'] = '*'
+        
+        geoo = [(51.492,-0.148),(50.903,-1.407),(52.409,-1.512),(51.526,-0.139),(53.484,-2.242),(53.407,-2.988)]
+        locations = []
+        for i in geoo:
+            locations.append(ndb.GeoPt(i[0],i[1]))
+        places = []
+        
+        bills = 0
+        
+        for i in range(0,6):
+            #ls = foursquare.getSuggestions(geoo[i][0],geoo[i][1])
+            ls = ["loc1","loc2","loc3"] 
+            places.append(ls)
+
         dateStart = datetime.datetime.now() - datetime.timedelta(days=365)
+        categ = ["Food","Health","Clothing","Other","Entertainment","Electronics"]
 
         while(dateStart < datetime.datetime.now()):
-            dateStart = dateStart + datetime.timedelta(minutes=random.randint(60,60*24))
+            dateStart = dateStart + datetime.timedelta(minutes=random.randint(60,60*47))
             if dateStart > datetime.datetime.now():
                 break
-            if(dateStart.hour <= 8):
-                dateStart = dateStart + datetime.timedelta(hours=12)
-            tra = Trans(parent=transaction_key())
-            location = random.choice(geoo)
-            loc = ndb.GeoPt(location[0],location[1])
-            ls = foursquare.getSuggestions(location[0],location[1])
+
+            tra = Trans(parent=transaction_key()) 
+            tra.author = author           
+
+            locInd = random.randint(0,5)
+            loc = locations[locInd]
+            ls = places[locInd]
             
-            tra.author = author
+            if bills == 0:
+                b = random.randint(1,10)
+                if b==1:
+                    bills = 1
+                    tra.item = Item(price = 400, storeName = "home", storeCat = "Bills", name = "rent", loc = loc, date = dateStart)
+                    tra.put()
+                    continue
+
             tra.item = Item(
                 price = random.random()*25.0,
-                storeName = random.choice(ls).getName(),
+                storeName = random.choice(ls), #.getName(),
                 storeCat = random.choice(categories),
                 name = random.choice(itemList),
                 loc = loc,
