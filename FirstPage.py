@@ -133,7 +133,7 @@ class getTrans(webapp2.RequestHandler):
         x = self.request.get('date')
         if(x):
             date = datetime.datetime.strptime(x, formatString)
-        num = 10
+        num = 50
         y = self.request.get('num')
         if(y):
             num = int(y)
