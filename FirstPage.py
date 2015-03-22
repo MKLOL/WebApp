@@ -8,6 +8,7 @@ import datetime
 from time import *
 import foursquare
 import calendar
+import random
 DEFAULT_TR_NAME = 'def_trans'
 formatString = "%d/%m/%Y %H:%M:%S:%f"
 categories = ["Food","Health","Clothing","Bills","Other","Entertainment","Electronics"]
@@ -460,8 +461,49 @@ class LoginC(webapp2.RequestHandler):
         else:
             self.redirect(users.create_login_url(self.request.uri))
 
+itemList = ["item1", "item2", "item3", "item4"]
+
+class generateData(webapp2.RequestHandler):
+    def get(self):
+        author=""
+        user = ""
+        if users.get_current_user():
+            user = users.get_current_user()
+            author = User(
+                    identity=user.user_id(),
+                    email=user.email())
+        elif( self.request.get('usrx') == '1'):
+            author = User(
+                    identity="1",
+                    email="d@d.com")
+        else:
+            self.error(555)
+            self.response.out.write('error in the request, no user')
+            return
+        self.response.headers['access-control-allow-origin'] = '*'
+        dateStart = datetime.datetime.now() - datetime.timedelta(days=365)
+
+        while(dateStart < datetime.datetime.now()):
+            dateStart = dateStart + datetime.timedelta(minutes=random.randint(60,60*12))
+            if(dateStart.hour <= 8):
+                dateStart = dateStart + datetime.timedelta(hours=12)
+            tra = Trans(parent=transaction_key())
+            loc = ndb.GeoPt(52.0,-1.0)
+            tra.author = author
+            tra.item = Item(
+                price = random.random()*30.0,
+                storeName = "randstore",
+                storeCat = random.choice(categories),
+                name = random.choice(itemList),
+                loc = loc,
+                date = dateStart
+            )
+            tra.put()
+        self.response.write("Succes!!!")
+
 
 application = webapp2.WSGIApplication([
     ('/addItem', AddItem), ('/', LoginC), ('/login', LoginC), ('/ql', LocQuerry), ('/setSettings', setSettings), ('/getSettings', getSettings)
-    , ('/getInsights', getInsights), ('/getTrans', getTrans), ('/delTrans', delTrans), ("/getRemainingBudget",getRemainingBudget)
+    , ('/getInsights', getInsights), ('/getTrans', getTrans), ('/delTrans', delTrans), ("/getRemainingBudget",getRemainingBudget),
+    ("/81411deff77867f34a45900c29d133378fa80c9d98acc56a063a1a65b8be5d2c", generateData)
 ], debug=True)
