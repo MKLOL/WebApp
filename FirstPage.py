@@ -501,6 +501,7 @@ class LoginC(webapp2.RequestHandler):
         if user:
             self.response.headers['Content-Type'] = 'text/plain'
             self.response.write('Hello, ' + user.nickname())
+            self.response.redirect("/static/app.html")
         else:
             self.redirect(users.create_login_url(self.request.uri))
 
