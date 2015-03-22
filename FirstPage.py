@@ -313,6 +313,9 @@ class AddItem(webapp2.RequestHandler):
             )
         self.response.headers['access-control-allow-origin'] = '*'
         tra.put()
+        mh = dict()
+        mh["key"] = tra.item.dateAdded.strftime(formatString)
+        self.response.write(json.dumps(mh))
 
 class getInsights(webapp2.RequestHandler):
     def get(self):
