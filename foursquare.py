@@ -24,8 +24,12 @@ class Venue:
 def getSuggestions(lat, lon):
     venueList = []
     date = datetime.date.today().strftime("%Y%m%d")
-    url = "https://api.foursquare.com/v2/venues/search?ll="+str(lat)+","+str(lon)+"&client_id="+cID+"&client_secret="+secret+"&v="+date
-    content = requests.get(url).content
+    url = "https://api.foursquare.com/v2/venues/search?ll="+str(lat)+","+str(lon)+"&client_id="+cID+"&client_secret="+secret+"&v="+date    
+    content = requests.get(url).content 
+
+    if content[1]=='<':
+        return []
+    
     venues = json.loads(content)['response']['venues']
     
     for v in venues:
@@ -39,4 +43,4 @@ def getSuggestions(lat, lon):
 
     venueList.sort()
     nr = min(len(venueList),5)
-    return venueList[:5]
+    return venueList[:nr]

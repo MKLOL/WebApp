@@ -532,8 +532,9 @@ class generateData(webapp2.RequestHandler):
         places = [] 
         
         for i in range(0,6):
-            #ls = foursquare.getSuggestions(geoo[i][0],geoo[i][1])
-            ls = ["loc1","loc2","loc3"] 
+            ls = foursquare.getSuggestions(geoo[i][0],geoo[i][1])
+            if len(ls) == 0:
+                ls.append("location unknown")
             places.append(ls)
 
         dateStart = datetime.datetime.now() - datetime.timedelta(days=30)
